@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Altix – Multi-Fund Simulator v4</title>
+<link href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Host Grotesk','Segoe UI',system-ui,sans-serif;background:#F7F5F2;color:#1a1a2e;min-height:100vh}
+.w{max-width:960px;margin:0 auto;padding:48px 32px 64px}
+.t{font-family:'Faktum','Host Grotesk',system-ui,sans-serif;font-size:44px;font-weight:400;color:#1a1a2e;text-align:center;margin-bottom:16px;letter-spacing:-.3px}
+.st{text-align:center;color:#5a5a6e;font-size:16px;line-height:1.65;max-width:680px;margin:0 auto 40px}
+
+/* Fund selector */
+.fp{background:#EEEAE4;border-radius:16px;padding:24px 28px;margin-bottom:40px}
+.fp-title{font-size:13px;font-weight:600;color:#8a8a9a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:16px}
+.fp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.fund{background:#fff;border-radius:12px;padding:16px;border:2px solid #e0ddd8;transition:border-color .2s,opacity .2s}
+.fund.active{border-color:var(--fc)}
+.fund.inactive{opacity:.45}
+.fund-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.fund-name{font-size:14px;font-weight:700;color:#1a1a2e}
+.fund-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+.fund-yr{font-size:11px;color:#8a8a9a;margin-top:2px}
+.toggle{position:relative;width:40px;height:22px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .tsl{position:absolute;top:0;left:0;right:0;bottom:0;background:#e0ddd8;border-radius:11px;transition:.2s}
+.toggle .tsl:before{content:'';position:absolute;height:16px;width:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.tsl{background:var(--fc)}
+.toggle input:checked+.tsl:before{transform:translateX(18px)}
+.fund-val{font-family:'Host Grotesk',sans-serif;font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:6px}
+.fund-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:#e0ddd8;outline:none;cursor:pointer}
+.fund-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--fc);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.fund-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--fc);cursor:pointer;border:2px solid #fff}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#e0ddd8;border-radius:16px;overflow:hidden;margin-bottom:40px}
+.card{background:#EEEAE4;padding:24px 20px;display:flex;flex-direction:column;gap:4px}
+.ch{font-size:11px;font-weight:500;color:#8a8a9a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.cv{font-family:'Host Grotesk',sans-serif;font-size:24px;font-weight:700;color:#1a1a2e;letter-spacing:-.5px}
+.cs{font-size:12px;font-weight:600;color:#525ae1;margin-top:4px}
+
+/* Chart */
+.cw{background:#525ae1;border-radius:20px;padding:28px 16px 12px;margin-bottom:32px;overflow:hidden}
+.chart-svg{display:block;width:100%;height:auto}
+.lg{display:flex;gap:20px;justify-content:center;padding:6px 0;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:rgba(255,255,255,.8)}
+.ld{width:10px;height:10px;border-radius:50%}
+
+/* Table */
+.tw{overflow-x:auto;border-radius:12px;border:1px solid #e0ddd8;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+th{background:#F7F5F2;padding:8px 4px;font-weight:600;color:#5a5a6e;text-align:center;border-bottom:2px solid #e0ddd8;overflow:hidden;text-overflow:ellipsis}
+th:first-child{text-align:left;padding-left:10px;width:100px}
+th:last-child{background:#EEEAE4;font-weight:700;color:#1a1a2e}
+td{padding:8px 4px;text-align:center;border-bottom:1px solid #f0ede8;color:#5a5a6e;overflow:hidden;text-overflow:ellipsis}
+td:first-child{text-align:left;padding-left:10px;font-weight:600;color:#1a1a2e}
+td:last-child{background:#FAFAF8;font-weight:700;color:#1a1a2e}
+tr:last-child td{border-bottom:none;font-weight:600;color:#1a1a2e}
+.disc{font-style:italic;font-size:12.5px;color:#8a8a9a;line-height:1.6;margin-top:16px}
+
+@media(max-width:768px){.fp-grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:repeat(2,1fr)}.t{font-size:28px}.w{padding:32px 16px 48px}.cv{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="w">
+  <h1 class="t">Jouw portfolio over de jaren</h1>
+  <p class="st">Combineer meerdere Altix fondsen en bekijk hoe jouw totale cashflow zich ontwikkelt. Elk fonds start een jaar later — zo spreid je risico en cashflow over de tijd.</p>
+
+  <div class="fp">
+    <div class="fp-title">Fondsen</div>
+    <div class="fp-grid" id="fundGrid"></div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="ch">Totale toezegging</div>
+      <div class="cv" id="cardCommit">—</div>
+      <div class="cs" id="cardFundCount">0 fondsen</div>
+    </div>
+    <div class="card">
+      <div class="ch">Totaal opgevraagd</div>
+      <div class="cv" id="cardCalls">—</div>
+      <div class="cs">~80% per fonds</div>
+    </div>
+    <div class="card">
+      <div class="ch">Verwacht rendement</div>
+      <div class="cv" id="cardMultiple">—</div>
+      <div class="cs">Op opgevraagd kapitaal</div>
+    </div>
+    <div class="card">
+      <div class="ch">Totale opbrengst</div>
+      <div class="cv" id="cardDists">—</div>
+      <div class="cs">Inleg + rendement</div>
+    </div>
+  </div>
+
+  <div class="cw" id="chartWrap">
+    <svg id="chartSvg" class="chart-svg" height="640"></svg>
+    <div class="lg" id="legend"></div>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr id="tHead"></tr></thead>
+      <tbody id="tBody"></tbody>
+    </table>
+  </div>
+
+  <p class="disc">De weergegeven uitkomst is indicatief en gebaseerd op een gemiddeld scenario, inclusief het verwachte verloop van stortingsverzoeken en terugbetalingen. Het uiteindelijke rendement kan afwijken. De belegger kan het overgemaakte bedrag geheel of gedeeltelijk verliezen. Er is geen kapitaalgarantie.</p>
+</div>
+
+<script>
+var FUND_PROFILE_YEARS = 12;
+var MIN_FIRST_CALL = 100000;
+var INPUT_PCTS = [0.20, 0.15, 0.15, 0.15, 0.15, 0, 0, 0, 0, 0, 0, 0];
+var DIST_PCTS = [0, 0, 0, 0, 0, 0.15, 0.20, 0.20, 0.20, 0.15, 0.075, 0.025];
+var CALL_PCT = 0.80;
+var MULTIPLIER = 2.25;
+
+var FUND_COLORS = [
+  { bar: '#ecf3fb', barAlpha: 'rgba(236,243,251,0.9)', ui: '#7B8CDE', name: 'Alt.1' },
+  { bar: '#ccf8fb', barAlpha: 'rgba(204,248,251,0.9)', ui: '#5BC5C8', name: 'Alt.2' },
+  { bar: '#E8D5F5', barAlpha: 'rgba(232,213,245,0.9)', ui: '#9B72CF', name: 'Alt.3' },
+  { bar: '#FDE8CC', barAlpha: 'rgba(253,232,204,0.9)', ui: '#D4944C', name: 'Alt.4' }
+];
+
+var funds = [
+  { name: 'Alt.1', active: true,  commitment: 500000, startYear: 0 },
+  { name: 'Alt.2', active: false, commitment: 500000, startYear: 1 },
+  { name: 'Alt.3', active: false, commitment: 500000, startYear: 2 },
+  { name: 'Alt.4', active: false, commitment: 500000, startYear: 3 }
+];
+
+var fmtEUR = function(x) { return new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR',minimumFractionDigits:0,maximumFractionDigits:0}).format(Math.round(Number(x||0))); };
+var fmtK = function(x) {
+  var v = Math.round(Number(x||0));
+  if (Math.abs(v) >= 1000000) { var m = v/1000000; return (v>0?'+':'') + m.toLocaleString('nl-NL',{minimumFractionDigits:1,maximumFractionDigits:1}) + 'M'; }
+  if (Math.abs(v) >= 1000) { var k = v/1000; return (k>0?'+':'') + k.toLocaleString('nl-NL') + 'K'; }
+  return (v>0?'+':'') + v.toLocaleString('nl-NL');
+};
+var fmtLabel = function(x) {
+  var v = Math.round(Number(x||0));
+  if (Math.abs(v) < 1) return '';
+  if (Math.abs(v) >= 1000) { var k = v/1000; return '€' + (v>=0?'+':'') + k.toLocaleString('nl-NL') + 'K'; }
+  return '€' + (v>=0?'+':'') + v.toLocaleString('nl-NL');
+};
+
+function calcFundProfile(commitment) {
+  var totalCalls = commitment * CALL_PCT;
+  var totalDists = totalCalls * MULTIPLIER;
+  var inputCum = [], s = 0;
+  for (var i = 0; i < FUND_PROFILE_YEARS; i++) { s += INPUT_PCTS[i]; inputCum.push(s); }
+  var callPcts = new Array(FUND_PROFILE_YEARS).fill(0);
+  if (INPUT_PCTS[0] * commitment < MIN_FIRST_CALL) {
+    callPcts[0] = Math.min(MIN_FIRST_CALL / commitment, CALL_PCT);
+  } else {
+    callPcts[0] = INPUT_PCTS[0];
+  }
+  var callCum = [callPcts[0]];
+  for (var i = 1; i < FUND_PROFILE_YEARS; i++) {
+    var diff = inputCum[i] - callCum[i-1];
+    callPcts[i] = Math.max(0, diff);
+    callCum.push(callCum[i-1] + callPcts[i]);
+  }
+  var net = [];
+  for (var i = 0; i < FUND_PROFILE_YEARS; i++) {
+    net.push(-(callPcts[i] * commitment) + DIST_PCTS[i] * totalDists);
+  }
+  return { net: net, totalCalls: totalCalls, totalDists: totalDists };
+}
+
+function calculate() {
+  var activeFunds = [];
+  funds.forEach(function(f, idx) { if (f.active) activeFunds.push({ fund: f, idx: idx }); });
+  if (activeFunds.length === 0) {
+    return { totalYears: 12, fundNets: [], netYearly: new Array(12).fill(0), startLevel: new Array(12).fill(0), endLevel: new Array(12).fill(0), totalCalls: 0, totalDists: 0, totalCommit: 0, fundCount: 0, callsYearly: new Array(12).fill(0), distsYearly: new Array(12).fill(0) };
+  }
+
+  var maxYear = 0;
+  activeFunds.forEach(function(af) {
+    var end = af.fund.startYear + FUND_PROFILE_YEARS;
+    if (end > maxYear) maxYear = end;
+  });
+
+  var totalYears = maxYear;
+  var totalCalls = 0, totalDists = 0, totalCommit = 0;
+  var callsYearly = new Array(totalYears).fill(0);
+  var distsYearly = new Array(totalYears).fill(0);
+
+  // Per-fund net arrays for stacking
+  var fundNets = [];
+  activeFunds.forEach(function(af) {
+    var profile = calcFundProfile(af.fund.commitment);
+    totalCalls += profile.totalCalls;
+    totalDists += profile.totalDists;
+    totalCommit += af.fund.commitment;
+    var yearlyNet = new Array(totalYears).fill(0);
+    for (var i = 0; i < FUND_PROFILE_YEARS; i++) {
+      var yr = af.fund.startYear + i;
+      if (yr < totalYears) {
+        yearlyNet[yr] = profile.net[i];
+        // Also track calls/dists separately for table
+        var callAmt = -(new Array(FUND_PROFILE_YEARS).fill(0));
+        callsYearly[yr] += -(Math.abs(profile.net[i]) > Math.abs(profile.net[i]) ? 0 : 0); // we'll recalc below
+      }
+    }
+    fundNets.push({ idx: af.idx, net: yearlyNet });
+  });
+
+  // Recalculate calls/dists properly for table
+  callsYearly = new Array(totalYears).fill(0);
+  distsYearly = new Array(totalYears).fill(0);
+  activeFunds.forEach(function(af) {
+    var c = af.fund.commitment;
+    var tc = c * CALL_PCT;
+    var td = tc * MULTIPLIER;
+    var inputCum = [], s = 0;
+    for (var i = 0; i < FUND_PROFILE_YEARS; i++) { s += INPUT_PCTS[i]; inputCum.push(s); }
+    var callPcts = new Array(FUND_PROFILE_YEARS).fill(0);
+    if (INPUT_PCTS[0] * c < MIN_FIRST_CALL) {
+      callPcts[0] = Math.min(MIN_FIRST_CALL / c, CALL_PCT);
+    } else {
+      callPcts[0] = INPUT_PCTS[0];
+    }
+    var callCum = [callPcts[0]];
+    for (var i = 1; i < FUND_PROFILE_YEARS; i++) {
+      var diff = inputCum[i] - callCum[i-1];
+      callPcts[i] = Math.max(0, diff);
+      callCum.push(callCum[i-1] + callPcts[i]);
+    }
+    for (var i = 0; i < FUND_PROFILE_YEARS; i++) {
+      var yr = af.fund.startYear + i;
+      if (yr < totalYears) {
+        callsYearly[yr] += -(callPcts[i] * c);
+        distsYearly[yr] += DIST_PCTS[i] * td;
+      }
+    }
+  });
+
+  var netYearly = new Array(totalYears).fill(0);
+  for (var i = 0; i < totalYears; i++) netYearly[i] = callsYearly[i] + distsYearly[i];
+  var endLevel = [];
+  netYearly.forEach(function(n, i) { endLevel[i] = (i === 0 ? 0 : endLevel[i-1]) + n; });
+  var startLevel = endLevel.map(function(_, i) { return i === 0 ? 0 : endLevel[i-1]; });
+
+  return { totalYears: totalYears, fundNets: fundNets, netYearly: netYearly, startLevel: startLevel, endLevel: endLevel, totalCalls: totalCalls, totalDists: totalDists, totalCommit: totalCommit, fundCount: activeFunds.length, callsYearly: callsYearly, distsYearly: distsYearly };
+}
+
+function buildFundGrid() {
+  var grid = document.getElementById('fundGrid');
+  grid.innerHTML = '';
+  funds.forEach(function(f, idx) {
+    var col = FUND_COLORS[idx];
+    var div = document.createElement('div');
+    div.className = 'fund ' + (f.active ? 'active' : 'inactive');
+    div.id = 'fund-' + idx;
+    div.style.setProperty('--fc', col.ui);
+    div.innerHTML =
+      '<div class="fund-top">' +
+        '<div><div class="fund-name"><span class="fund-dot" style="background:'+col.bar+'"></span>' + f.name + '</div><div class="fund-yr">Start: jaar ' + (f.startYear + 1) + '</div></div>' +
+        '<label class="toggle"><input type="checkbox" ' + (f.active ? 'checked' : '') + ' data-idx="' + idx + '"><span class="tsl"></span></label>' +
+      '</div>' +
+      '<div class="fund-val" id="fval-' + idx + '">' + fmtEUR(f.commitment) + '</div>' +
+      '<input type="range" class="fund-slider" min="100000" max="5000000" step="25000" value="' + f.commitment + '" data-idx="' + idx + '">';
+    grid.appendChild(div);
+  });
+
+  grid.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var idx = parseInt(this.dataset.idx);
+      funds[idx].active = this.checked;
+      document.getElementById('fund-' + idx).className = 'fund ' + (this.checked ? 'active' : 'inactive');
+      render();
+    });
+  });
+  grid.querySelectorAll('.fund-slider').forEach(function(sl) {
+    sl.addEventListener('input', function() {
+      var idx = parseInt(this.dataset.idx);
+      funds[idx].commitment = parseInt(this.value);
+      document.getElementById('fval-' + idx).textContent = fmtEUR(funds[idx].commitment);
+      render();
+    });
+  });
+}
+
+function render() {
+  var c = calculate();
+
+  document.getElementById('cardCommit').textContent = fmtEUR(c.totalCommit);
+  document.getElementById('cardFundCount').textContent = c.fundCount + ' fonds' + (c.fundCount !== 1 ? 'en' : '');
+  document.getElementById('cardCalls').textContent = fmtEUR(c.totalCalls);
+  document.getElementById('cardMultiple').textContent = c.totalCalls > 0 ? (c.totalDists / c.totalCalls).toFixed(2) + 'x' : '—';
+  document.getElementById('cardDists').textContent = fmtEUR(c.totalDists);
+
+  // Legend
+  var legHTML = '';
+  c.fundNets.forEach(function(fn) {
+    var col = FUND_COLORS[fn.idx];
+    legHTML += '<div class="li"><div class="ld" style="background:'+col.bar+'"></div>'+col.name+'</div>';
+  });
+  document.getElementById('legend').innerHTML = legHTML;
+
+  // Chart
+  var wrap = document.getElementById('chartWrap');
+  var svg = document.getElementById('chartSvg');
+  var chartW = wrap.clientWidth - 32;
+  var chartH = 640; // Fixed height, no jumping
+  var pad = { left: 16, right: 16, top: 40, bottom: 56 };
+  var innerW = chartW - pad.left - pad.right;
+  var innerH = chartH - pad.top - pad.bottom;
+  var totalYears = c.totalYears;
+
+  svg.setAttribute('height', chartH);
+
+  // Calculate intermediate stacking extremes for proper y-scale
+  var allVals = c.endLevel.concat(c.startLevel).concat([0]);
+  // Also check the lowest point within mixed years (after neg stack, before pos stack)
+  for (var yr = 0; yr < totalYears; yr++) {
+    var negSum = 0;
+    c.fundNets.forEach(function(fn) {
+      var v = fn.net[yr] || 0;
+      if (v < -1) negSum += v;
+    });
+    var lowestPoint = c.startLevel[yr] + negSum;
+    allVals.push(lowestPoint);
+  }
+  var dMin = Math.min.apply(null, allVals);
+  var dMax = Math.max.apply(null, allVals);
+  var mg = Math.max(Math.abs(dMax), Math.abs(dMin), 1) * 0.18;
+  var rMin = dMin - mg;
+  var rMax = dMax + mg;
+
+  var yScale = function(v) { return pad.top + innerH - ((v - rMin) / (rMax - rMin || 1)) * innerH; };
+  var barGroupW = innerW / totalYears;
+  var barW = Math.min(barGroupW * 0.65, 42);
+  var xCenter = function(i) { return pad.left + barGroupW * i + barGroupW / 2; };
+  var zeroY = yScale(0);
+
+  svg.setAttribute('width', chartW);
+  svg.setAttribute('viewBox', '0 0 ' + chartW + ' ' + chartH);
+
+  var s = '';
+  s += '<line x1="'+pad.left+'" y1="'+zeroY+'" x2="'+(chartW-pad.right)+'" y2="'+zeroY+'" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>';
+  s += '<text x="'+(pad.left+4)+'" y="'+(zeroY-7)+'" fill="rgba(255,255,255,0.5)" font-size="11" font-family="Host Grotesk, sans-serif">0</text>';
+
+  // Stacked bars per year
+  for (var yr = 0; yr < totalYears; yr++) {
+    var cx = xCenter(yr);
+    var bx = cx - barW / 2;
+    var sl = c.startLevel[yr];
+
+    // Split funds into negative and positive contributors for this year
+    var negParts = [], posParts = [], allParts = [];
+    c.fundNets.forEach(function(fn) {
+      var v = fn.net[yr] || 0;
+      if (Math.abs(v) > 1) {
+        if (v < 0) negParts.push({ idx: fn.idx, val: v });
+        else posParts.push({ idx: fn.idx, val: v });
+        allParts.push({ idx: fn.idx, val: v });
+      }
+    });
+
+    var lowestLevel = sl, highestLevel = sl;
+
+    var negCursor = sl;
+    negParts.forEach(function(p) {
+      var topY = yScale(negCursor); var botY = yScale(negCursor + p.val); var h = Math.abs(botY - topY);
+      s += '<rect x="'+bx+'" y="'+Math.min(topY,botY)+'" width="'+barW+'" height="'+Math.max(h,3)+'" rx="4" fill="'+FUND_COLORS[p.idx].bar+'" stroke="rgba(82,90,225,0.4)" stroke-width="1" pointer-events="none"/>';
+      negCursor += p.val;
+    });
+    if (negCursor < lowestLevel) lowestLevel = negCursor;
+
+    var posCursor = negCursor;
+    posParts.forEach(function(p) {
+      var botY = yScale(posCursor); var topY = yScale(posCursor + p.val); var h = Math.abs(botY - topY);
+      s += '<rect x="'+bx+'" y="'+Math.min(topY,botY)+'" width="'+barW+'" height="'+Math.max(h,3)+'" rx="4" fill="'+FUND_COLORS[p.idx].bar+'" stroke="rgba(82,90,225,0.4)" stroke-width="1" pointer-events="none"/>';
+      posCursor += p.val;
+    });
+    if (posCursor > highestLevel) highestLevel = posCursor;
+
+    var netVal = c.netYearly[yr];
+    if (Math.abs(netVal) > 1 && barGroupW > 30) {
+      var labelY = netVal >= 0 ? yScale(highestLevel) - 8 : yScale(lowestLevel) + 15;
+      s += '<text x="'+cx+'" y="'+labelY+'" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="'+(totalYears > 13 ? 7 : 9)+'" font-weight="600" font-family="Host Grotesk, sans-serif" pointer-events="none">'+fmtLabel(netVal)+'</text>';
+    }
+
+    // Invisible full-height hitarea
+    var tipData = encodeURIComponent(JSON.stringify(allParts));
+    var colX = cx - barGroupW / 2;
+    s += '<rect x="'+colX+'" y="'+pad.top+'" width="'+barGroupW+'" height="'+innerH+'" fill="transparent" class="yr-hit" data-tip="'+tipData+'" data-yr="'+(yr+1)+'" data-net="'+fmtEUR(netVal)+'" data-calls="'+fmtEUR(c.callsYearly[yr])+'" data-dists="'+fmtEUR(c.distsYearly[yr])+'"/>';
+
+    var fontSize = totalYears <= 12 ? 13 : totalYears <= 15 ? 11 : 9;
+    s += '<text x="'+cx+'" y="'+(chartH-pad.bottom+20)+'" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="'+fontSize+'" font-weight="600" font-family="Host Grotesk, sans-serif" pointer-events="none">'+(yr+1)+'</text>';
+  }
+
+  svg.innerHTML = s;
+
+  // Tooltip on full-column hover
+  var tip = document.getElementById('chartTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'chartTip';
+    tip.style.cssText = 'position:absolute;pointer-events:none;background:rgba(10,14,36,0.95);color:#fff;padding:8px 12px;border-radius:8px;font-size:11px;font-family:Host Grotesk,sans-serif;line-height:1.5;display:none;z-index:10;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,0.4);backdrop-filter:blur(4px)';
+    document.getElementById('chartWrap').style.position = 'relative';
+    document.getElementById('chartWrap').appendChild(tip);
+  }
+  svg.querySelectorAll('.yr-hit').forEach(function(rect) {
+    rect.style.cursor = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\'%3E%3Crect x=\'1\' y=\'1\' width=\'14\' height=\'14\' rx=\'3\' fill=\'rgba(255,255,255,0.15)\' stroke=\'white\' stroke-width=\'1\'/%3E%3C/svg%3E") 8 8, pointer';
+    rect.addEventListener('mouseenter', function(e) {
+      var yr = this.getAttribute('data-yr'), netStr = this.getAttribute('data-net');
+      var parts = JSON.parse(decodeURIComponent(this.getAttribute('data-tip')));
+      var html = '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:5px"><span style="font-weight:700;font-size:12px">Jaar '+yr+'</span><span style="color:rgba(255,255,255,0.45);font-size:10px">netto '+netStr+'</span></div>';
+      parts.forEach(function(p) {
+        var col = FUND_COLORS[p.idx];
+        html += '<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:6px;height:6px;border-radius:50%;background:'+col.bar+';flex-shrink:0"></span><span style="min-width:32px">'+col.name+'</span><span style="margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums">'+fmtEUR(p.val)+'</span></div>';
+      });
+      tip.innerHTML = html; tip.style.display = 'block';
+    });
+    rect.addEventListener('mousemove', function(e) {
+      var wr = document.getElementById('chartWrap').getBoundingClientRect();
+      var tipW = tip.offsetWidth || 160;
+      var tipH = tip.offsetHeight || 100;
+      var x = e.clientX - wr.left + 14;
+      var y = e.clientY - wr.top - tipH / 2;
+      if (x + tipW + 8 > wr.width) x = e.clientX - wr.left - tipW - 14;
+      if (y < 4) y = 4;
+      if (y + tipH > wr.height - 4) y = wr.height - tipH - 4;
+      tip.style.left = x+'px'; tip.style.top = y+'px';
+    });
+    rect.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+  });
+
+  // Table
+  var hh = '<th>Jaren</th>';
+  for (var i = 1; i <= totalYears; i++) hh += '<th>'+i+'</th>';
+  hh += '<th>Totaal</th>';
+  document.getElementById('tHead').innerHTML = hh;
+
+  // Build per-fund cumulative levels for tooltip
+  var fundCumLevels = [];
+  c.fundNets.forEach(function(fn) {
+    var cum = [];
+    fn.net.forEach(function(v, i) { cum[i] = (i === 0 ? 0 : cum[i-1]) + v; });
+    fundCumLevels.push({ idx: fn.idx, cum: cum });
+  });
+
+  var bb = '<tr><td>Stortingen</td>';
+  c.callsYearly.forEach(function(v){ bb += '<td style="color:'+(Math.abs(v)>1?'#1a1a2e':'#c0bdb8')+'">'+(Math.abs(v)>1?fmtK(v):'—')+'</td>'; });
+  bb += '<td>'+fmtK(-c.totalCalls)+'</td></tr>';
+
+  bb += '<tr><td>Uitkeringen</td>';
+  c.distsYearly.forEach(function(v){ bb += '<td style="color:'+(v>1?'#525ae1':'#c0bdb8')+'">'+(v>1?fmtK(v):'—')+'</td>'; });
+  bb += '<td style="color:#525ae1">'+fmtK(c.totalDists)+'</td></tr>';
+
+  bb += '<tr><td>Netto</td>';
+  c.netYearly.forEach(function(v, i){
+    var tipData = [];
+    c.fundNets.forEach(function(fn) { var fv = fn.net[i] || 0; if (Math.abs(fv) > 1) tipData.push({ idx: fn.idx, val: fv }); });
+    var td = encodeURIComponent(JSON.stringify(tipData));
+    bb += '<td class="tip-cell" data-tip="'+td+'" data-yr="'+(i+1)+'" data-row="netto" style="color:'+(v>=0?'#059669':'#dc2626')+'">'+fmtK(v)+'</td>';
+  });
+  bb += '<td style="color:#059669">'+fmtK(c.totalDists - c.totalCalls)+'</td></tr>';
+
+  bb += '<tr><td>Cumulatief</td>';
+  c.endLevel.forEach(function(v, i){
+    var tipData = [];
+    fundCumLevels.forEach(function(fc) { tipData.push({ idx: fc.idx, val: fc.cum[i] || 0 }); });
+    var td = encodeURIComponent(JSON.stringify(tipData));
+    bb += '<td class="tip-cell" data-tip="'+td+'" data-yr="'+(i+1)+'" data-row="cumulatief" style="color:'+(v>=0?'#059669':'#dc2626')+'">'+fmtK(v)+'</td>';
+  });
+  bb += '<td style="color:#059669">'+fmtK(c.endLevel[c.endLevel.length-1])+'</td></tr>';
+
+  document.getElementById('tBody').innerHTML = bb;
+
+  // Table cell tooltips
+  var tableTip = document.getElementById('tableTip');
+  if (!tableTip) {
+    tableTip = document.createElement('div');
+    tableTip.id = 'tableTip';
+    tableTip.style.cssText = 'position:fixed;pointer-events:none;background:rgba(15,20,40,0.94);color:#fff;padding:10px 14px;border-radius:8px;font-size:12px;font-family:Host Grotesk,sans-serif;line-height:1.6;display:none;z-index:100;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,0.35)';
+    document.body.appendChild(tableTip);
+  }
+  document.querySelectorAll('.tip-cell').forEach(function(td) {
+    td.style.cursor = 'pointer';
+    td.addEventListener('mouseenter', function(e) {
+      var yr = this.getAttribute('data-yr');
+      var row = this.getAttribute('data-row');
+      var parts = JSON.parse(decodeURIComponent(this.getAttribute('data-tip')));
+      var title = row === 'cumulatief' ? 'Cumulatief jaar ' + yr : 'Netto jaar ' + yr;
+      var html = '<div style="margin-bottom:6px;font-weight:700">' + title + '</div>';
+      var total = 0;
+      parts.forEach(function(p) { var col = FUND_COLORS[p.idx]; total += p.val; html += '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:8px;height:8px;border-radius:50%;background:'+col.bar+';flex-shrink:0"></span><span>'+col.name+'</span><span style="margin-left:auto;font-weight:600">'+fmtEUR(p.val)+'</span></div>'; });
+      if (parts.length > 1) html += '<div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:6px;padding-top:6px;font-weight:700;display:flex;justify-content:space-between"><span>Totaal</span><span>'+fmtEUR(total)+'</span></div>';
+      tableTip.innerHTML = html; tableTip.style.display = 'block';
+    });
+    td.addEventListener('mousemove', function(e) {
+      var x = e.clientX + 14, y = e.clientY - 20;
+      if (x + 200 > window.innerWidth) x = e.clientX - 210;
+      tableTip.style.left = x + 'px'; tableTip.style.top = y + 'px';
+    });
+    td.addEventListener('mouseleave', function() { tableTip.style.display = 'none'; });
+  });
+}
+
+buildFundGrid();
+render();
+window.addEventListener('resize', render);
+</script>
+</body>
+</html>
